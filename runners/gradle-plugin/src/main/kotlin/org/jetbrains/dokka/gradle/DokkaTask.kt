@@ -10,6 +10,7 @@ import org.gradle.api.tasks.*
 import org.jetbrains.dokka.DokkaBootstrap
 import org.jetbrains.dokka.DokkaConfiguration.ExternalDocumentationLink.Builder
 import org.jetbrains.dokka.DokkaConfiguration.SourceRoot
+import org.jetbrains.dokka.DokkaException
 import org.jetbrains.dokka.Platform
 import org.jetbrains.dokka.ReflectDsl
 import org.jetbrains.dokka.ReflectDsl.isNotInstance
@@ -19,7 +20,6 @@ import java.io.File
 import java.net.URLClassLoader
 import java.util.concurrent.Callable
 import java.util.function.BiConsumer
-import kotlin.system.exitProcess
 
 open class DokkaTask : DefaultTask(), Configurable {
     private val ANDROID_REFERENCE_URL = Builder("https://developer.android.com/reference/").build()
@@ -143,7 +143,7 @@ open class DokkaTask : DefaultTask(), Configurable {
         }
 
     @TaskAction
-    fun generate() = config?.let { generate(it) } ?: getConfiguration()?.let { generate(it) } ?: exitProcess(0)
+    fun generate() = config?.let { generate(it) } ?: generate(getConfiguration())
 
     protected open fun generate(configuration: GradleDokkaConfigurationImpl) {
         outputDiagnosticInfo = true
@@ -178,7 +178,7 @@ open class DokkaTask : DefaultTask(), Configurable {
         }
     }
 
-    internal open fun getConfiguration(): GradleDokkaConfigurationImpl? {
+    internal open fun getConfiguration(): GradleDokkaConfigurationImpl {
         val globalConfig = dokkaSourceSets.toList().find { it.name.toLowerCase() == GLOBAL_CONFIGURATION_NAME }
         val defaultModulesConfiguration = passConfigurations
             .map { defaultPassConfiguration(it, globalConfig) }.takeIf { it.isNotEmpty() }
@@ -191,7 +191,22 @@ open class DokkaTask : DefaultTask(), Configurable {
 
         if (defaultModulesConfiguration.isEmpty()) {
             logger.error("No source sets to document found, exiting")
-            return null
+            throw DokkaException(
+                """
+                No source sets to document found. 
+                Make source to configure at least one source set e.g.
+                
+                dokka {
+                    dokkaSourceSets {
+                        create("commonMain") {
+                            displayName = "common"
+                            platform = "common"
+                        }
+                    }
+                }
+                
+            """.trimIndent()
+            )
         }
 
         return GradleDokkaConfigurationImpl().apply {
