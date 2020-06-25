@@ -67,10 +67,8 @@ open class DefaultLocationProvider(
             "${page::class.simpleName}(${page.name}) does not belong to current page graph so it is impossible to compute its path"
         )
 
-        val contextNode =
-            if (context?.children?.isEmpty() == true && context.parent() != null) context.parent() else context
         val nodePath = pathFor(node)
-        val contextPath = contextNode?.let { pathFor(it) }.orEmpty()
+        val contextPath = context?.let { pathFor(it) }.orEmpty()
 
         val commonPathElements = nodePath.asSequence().zip(contextPath.asSequence())
             .takeWhile { (a, b) -> a == b }.count()
